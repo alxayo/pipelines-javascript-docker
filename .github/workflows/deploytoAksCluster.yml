@@ -1,0 +1,50 @@
+on: [push]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    
+    - uses: azure/docker-login@v1
+      with:
+        login-server: xayoaksdemoacr.azurecr.io
+        username: ${{ secrets.acr_xayoaksdemoacr_username }}
+        password: ${{ secrets.acr_xayoaksdemoacr_password }}
+    
+    - name: Build and push image to ACR
+      id: build-image
+      run: |
+        docker build "$GITHUB_WORKSPACE/app" -f  "app/Dockerfile" -t xayoaksdemoacr.azurecr.io/xayoaksdemo:${{ github.sha }}
+        docker push xayoaksdemoacr.azurecr.io/xayoaksdemo:${{ github.sha }}
+    
+    - uses: azure/k8s-set-context@v1
+      with:
+         kubeconfig: ${{ secrets.aks_xayoaksdemo_kubeConfig }}
+      id: login
+    
+    - name: Create namespace
+      run: |
+        namespacePresent=`kubectl get namespace | grep xayoaksdemo3385 | wc -l`
+        if [ $namespacePresent -eq 0 ]
+        then
+            echo `kubectl create namespace xayoaksdemo3385`
+        fi
+
+    - uses: azure/k8s-create-secret@v1
+      with:
+        namespace: xayoaksdemo3385
+        container-registry-url: xayoaksdemoacr.azurecr.io
+        container-registry-username: ${{ secrets.acr_xayoaksdemoacr_username }}
+        container-registry-password: ${{ secrets.acr_xayoaksdemoacr_password }}
+        secret-name: xayoaksdemodockerauth
+       
+    - uses: azure/k8s-deploy@v1
+      with:
+        namespace: xayoaksdemo3385
+        manifests: |
+          manifests/deployment.yml
+          manifests/service.yml
+        images: |
+          xayoaksdemoacr.azurecr.io/xayoaksdemo:${{ github.sha }}
+        imagepullsecrets: |
+          xayoaksdemodockerauth
