@@ -1,0 +1,16 @@
+apiVersion : apps/v1beta1
+kind: Deployment
+metadata:
+  name: "xayoaksdemo-31f9"
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: "xayoaksdemo-31f9"
+    spec:
+      containers:
+        - name: "xayoaksdemo-31f9"
+          image: "xayoaksdemoacr.azurecr.io/xayoaksdemo"
+          ports:
+          - containerPort: 8080
